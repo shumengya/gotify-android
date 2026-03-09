@@ -19,6 +19,7 @@ import android.widget.TextView
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.edit
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.graphics.drawable.toDrawable
@@ -158,8 +159,12 @@ internal class MessagesActivity :
                 }
             }
 
-        val excludeFromRecent = PreferenceManager.getDefaultSharedPreferences(this)
-            .getBoolean(getString(R.string.setting_key_exclude_from_recent), false)
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+        val excludeFromRecentKey = getString(R.string.setting_key_exclude_from_recent)
+        if (!sharedPreferences.contains(excludeFromRecentKey)) {
+            sharedPreferences.edit { putBoolean(excludeFromRecentKey, true) }
+        }
+        val excludeFromRecent = sharedPreferences.getBoolean(excludeFromRecentKey, true)
         Utils.setExcludeFromRecent(this, excludeFromRecent)
         launchCoroutine {
             updateMessagesForApplication(true, viewModel.appId)

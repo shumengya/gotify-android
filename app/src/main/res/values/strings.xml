@@ -55,7 +55,7 @@
     <string name="permissions_notification_denied_temp">Gotify requires permission to display push notifications.</string>
     <string name="permissions_notification_denied_permanent">Gotify requires permission to display push notifications. Please grant the required permission in the settings.</string>
     <string name="permissions_alarm_prompt">Gotify requires permission to schedule reconnecting after connection is lost.</string>
-    <string name="permissions_battery_optimization_prompt">Gotify works best when battery optimization is disabled. On some devices, such as Xiaomi/Redmi, the system may stop background push connections unless the app is exempted.</string>
+    <string name="permissions_battery_optimization_prompt">Gotify works best when battery optimization is disabled. On Xiaomi/Redmi devices, also allow auto start and background activity for more reliable push delivery.</string>
     <string name="gotify_logo">Gotify logo</string>
     <string name="refresh_all">Refresh all</string>
     <string name="logout_confirm">Do you really want to logout?</string>
@@ -93,6 +93,7 @@
     <string name="setting_key_notification_channels">notification_channels</string>
     <string name="setting_key_exclude_from_recent">exclude_from_recent</string>
     <string name="setting_exclude_from_recent">Exclude from recents</string>
+    <string name="setting_summary_exclude_from_recent">Hide Gotify from the recent apps screen to avoid accidentally swiping it away.</string>
     <string name="setting_intent_dialog_permission">Intent Action Permission</string>
     <string name="setting_key_intent_dialog_permission">intent_dialog_permission</string>
     <string name="setting_summary_intent_dialog_permission">To always show incoming intent URLs, give permission to show this app on top of other apps.</string>
@@ -124,6 +125,17 @@
     <string name="setting_exponential_backoff_title">Exponential Backoff</string>
     <string name="setting_exponential_backoff_summary">Exponentially increase the reconnect delay for each reconnect attempt</string>
     <string name="setting_key_exponential_backoff">reconnect_exponential_backoff</string>
+    <string name="setting_key_request_battery_optimization">request_battery_optimization</string>
+    <string name="setting_request_battery_optimization_title">Disable battery optimization</string>
+    <string name="setting_request_battery_optimization_summary">Ask Android to exempt Gotify from battery restrictions.</string>
+    <string name="setting_key_keepalive_help">keepalive_help</string>
+    <string name="setting_keepalive_help_title">Push keep-alive guide</string>
+    <string name="setting_keepalive_help_summary">Shows device-specific suggestions to keep background push more reliable.</string>
+    <string name="setting_open_app_settings">Open app settings</string>
+    <string name="setting_open_battery_optimization">Open battery settings</string>
+    <string name="setting_keepalive_guide_generic">For more reliable push delivery:\n\n1. Disable battery optimization for Gotify.\n2. Allow notifications and background activity.\n3. Avoid force stopping the app.\n4. Keep the foreground service notification enabled.\n\nAndroid may still stop background network connections on some devices.</string>
+    <string name="setting_keepalive_guide_xiaomi">For Xiaomi/Redmi/POCO devices:\n\n1. Battery saver → set Gotify to No restrictions.\n2. Enable Auto start for Gotify.\n3. Allow notifications and background activity.\n4. Do not force stop the app.\n5. Keep the foreground service notification enabled.\n\nSome MIUI/HyperOS versions may still stop background connections after task cleanup.</string>
+    <string name="setting_keepalive_hint_range">Please enter a value between 5 and 1200</string>
 
     <string name="notification_channel_title_foreground">Gotify foreground notification</string>
     <string name="notification_channel_title_min">Min priority messages (&lt;1)</string>

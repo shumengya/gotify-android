@@ -1,6 +1,7 @@
 package com.github.gotify.settings
 
 import android.app.Dialog
+import android.content.ActivityNotFoundException
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.SharedPreferences
@@ -83,7 +84,7 @@ internal class SettingsActivity :
                     if (value !in 5..1200) {
                         Utils.showSnackBar(
                             requireActivity(),
-                            "Please enter a value between 5 and 1200"
+                            getString(R.string.setting_keepalive_hint_range)
                         )
                         return@OnPreferenceChangeListener false
                     }
@@ -98,11 +99,20 @@ internal class SettingsActivity :
                     requestWebSocketRestart()
                     true
                 }
+            findPreference<Preference>(
+                getString(R.string.setting_key_request_battery_optimization)
+            )?.setOnPreferenceClickListener {
+                requestIgnoreBatteryOptimizations()
+            }
+            findPreference<Preference>(
+                getString(R.string.setting_key_keepalive_help)
+            )?.setOnPreferenceClickListener {
+                showKeepAliveGuide()
+            }
         }
 
         private fun requestWebSocketRestart() {
-            val intent = Intent(requireContext(), WebSocketService::class.java)
-            requireContext().startService(intent)
+            WebSocketService.start(requireContext())
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -176,6 +186,60 @@ internal class SettingsActivity :
                     getString(R.string.setting_summary_intent_dialog_permission)
                 }
             }
+        }
+
+        private fun requestIgnoreBatteryOptimizations(): Boolean {
+            return try {
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    "package:${requireContext().packageName}".toUri()
+                ).apply {
+                    startActivity(this)
+                }
+                true
+            } catch (_: ActivityNotFoundException) {
+                openAppDetailsSettingsPage()
+            }
+        }
+
+        private fun openAppDetailsSettingsPage(): Boolean {
+            return try {
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    "package:${requireContext().packageName}".toUri()
+                ).apply {
+                    startActivity(this)
+                }
+                true
+            } catch (_: ActivityNotFoundException) {
+                false
+            }
+        }
+
+        private fun showKeepAliveGuide(): Boolean {
+            val manufacturer = Build.MANUFACTURER.lowercase()
+            val messageId = if (
+                manufacturer.contains("xiaomi") ||
+                manufacturer.contains("redmi") ||
+                manufacturer.contains("poco")
+            ) {
+                R.string.setting_keepalive_guide_xiaomi
+            } else {
+                R.string.setting_keepalive_guide_generic
+            }
+
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.setting_keepalive_help_title)
+                .setMessage(messageId)
+                .setPositiveButton(R.string.setting_open_battery_optimization) { _, _ ->
+                    requestIgnoreBatteryOptimizations()
+                }
+                .setNeutralButton(R.string.setting_open_app_settings) { _, _ ->
+                    openAppDetailsSettingsPage()
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            return true
         }
 
         private fun showListPreferenceDialog(preference: ListPreference) {

@@ -28,6 +28,7 @@
             android:defaultValue="@bool/exclude_from_recent"
             android:key="@string/setting_key_exclude_from_recent"
             android:title="@string/setting_exclude_from_recent"
+            android:summary="@string/setting_summary_exclude_from_recent"
             app:singleLineTitle="false" />
     </PreferenceCategory>
 
@@ -63,6 +64,18 @@
             android:title="@string/setting_exponential_backoff_title"
             android:summary="@string/setting_exponential_backoff_summary"
             android:defaultValue="true" />
+
+        <Preference
+            android:key="@string/setting_key_request_battery_optimization"
+            android:title="@string/setting_request_battery_optimization_title"
+            android:summary="@string/setting_request_battery_optimization_summary"
+            app:singleLineTitle="false" />
+
+        <Preference
+            android:key="@string/setting_key_keepalive_help"
+            android:title="@string/setting_keepalive_help_title"
+            android:summary="@string/setting_keepalive_help_summary"
+            app:singleLineTitle="false" />
     </PreferenceCategory>
 
 </PreferenceScreen>
