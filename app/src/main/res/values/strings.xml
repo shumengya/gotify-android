@@ -55,6 +55,7 @@
     <string name="permissions_notification_denied_temp">Gotify requires permission to display push notifications.</string>
     <string name="permissions_notification_denied_permanent">Gotify requires permission to display push notifications. Please grant the required permission in the settings.</string>
     <string name="permissions_alarm_prompt">Gotify requires permission to schedule reconnecting after connection is lost.</string>
+    <string name="permissions_battery_optimization_prompt">Gotify works best when battery optimization is disabled. On some devices, such as Xiaomi/Redmi, the system may stop background push connections unless the app is exempted.</string>
     <string name="gotify_logo">Gotify logo</string>
     <string name="refresh_all">Refresh all</string>
     <string name="logout_confirm">Do you really want to logout?</string>

@@ -45,6 +45,9 @@ internal class Settings(context: Context) {
     var clientCertPassword: String?
         get() = sharedPreferences.getString("clientCertPass", null)
         set(value) = sharedPreferences.edit { putString("clientCertPass", value) }
+    var batteryOptimizationDialogShown: Boolean
+        get() = sharedPreferences.getBoolean("batteryOptimizationDialogShown", false)
+        set(value) = sharedPreferences.edit { putBoolean("batteryOptimizationDialogShown", value) }
 
     init {
         sharedPreferences = context.getSharedPreferences("gotify", Context.MODE_PRIVATE)
@@ -61,6 +64,7 @@ internal class Settings(context: Context) {
         caCertPath = null
         clientCertPath = null
         clientCertPassword = null
+        batteryOptimizationDialogShown = false
     }
 
     fun setUser(name: String?, admin: Boolean) {

@@ -606,7 +606,6 @@ internal class MessagesActivity :
     private fun deleteClientAndNavigateToLogin() {
         val settings = viewModel.settings
         val api = ClientFactory.clientToken(settings).createService(ClientApi::class.java)
-        stopService(Intent(this@MessagesActivity, WebSocketService::class.java))
         try {
             val clients = Api.execute(api.clients)
             var currentClient: Client? = null
@@ -627,6 +626,7 @@ internal class MessagesActivity :
         }
 
         viewModel.settings.clear()
+        WebSocketService.stop(this)
         startActivity(Intent(this@MessagesActivity, LoginActivity::class.java))
         finish()
     }

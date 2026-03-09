@@ -5,8 +5,8 @@ import android.app.AlarmManager
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
@@ -33,10 +33,9 @@ internal class InitializationActivity : AppCompatActivity() {
     private lateinit var settings: Settings
     private var splashScreenActive = true
 
-    @RequiresApi(Build.VERSION_CODES.S)
     private val activityResultLauncher =
         registerForActivityResult(StartActivityForResult()) {
-            requestAlarmPermissionOrAuthenticate()
+            requestStartupPermissionsOrAuthenticate()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,28 +47,35 @@ internal class InitializationActivity : AppCompatActivity() {
 
         if (settings.tokenExists()) {
             runWithPostNotificationsPermission {
-                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU) {
-                    // Android 14 and above
-                    requestAlarmPermissionOrAuthenticate()
-                } else {
-                    // Android 13 and below
-                    tryAuthenticate()
-                }
+                requestStartupPermissionsOrAuthenticate()
             }
         } else {
             showLogin()
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
-    private fun requestAlarmPermissionOrAuthenticate() {
-        val manager = ContextCompat.getSystemService(this, AlarmManager::class.java)
-        if (manager?.canScheduleExactAlarms() == true) {
-            tryAuthenticate()
-        } else {
-            stopSlashScreen()
-            alarmDialog()
+    private fun requestStartupPermissionsOrAuthenticate() {
+        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.TIRAMISU) {
+            val manager = ContextCompat.getSystemService(this, AlarmManager::class.java)
+            if (manager?.canScheduleExactAlarms() != true) {
+                stopSlashScreen()
+                alarmDialog()
+                return
+            }
         }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = ContextCompat.getSystemService(this, PowerManager::class.java)
+            val ignoresBatteryOptimizations =
+                powerManager?.isIgnoringBatteryOptimizations(packageName) == true
+            if (!ignoresBatteryOptimizations && !settings.batteryOptimizationDialogShown) {
+                stopSlashScreen()
+                batteryOptimizationDialog()
+                return
+            }
+        }
+
+        tryAuthenticate()
     }
 
     private fun showLogin() {
@@ -119,7 +125,6 @@ internal class InitializationActivity : AppCompatActivity() {
             .show()
     }
 
-    @RequiresApi(Build.VERSION_CODES.S)
     private fun alarmDialog() {
         MaterialAlertDialogBuilder(this)
             .setMessage(getString(R.string.permissions_alarm_prompt))
@@ -135,6 +140,26 @@ internal class InitializationActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun batteryOptimizationDialog() {
+        MaterialAlertDialogBuilder(this)
+            .setMessage(getString(R.string.permissions_battery_optimization_prompt))
+            .setPositiveButton(getString(R.string.permissions_dialog_grant)) { _, _ ->
+                settings.batteryOptimizationDialogShown = true
+                Intent(
+                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    "package:$packageName".toUri()
+                ).apply {
+                    activityResultLauncher.launch(this)
+                }
+            }
+            .setNegativeButton(getString(R.string.cancel)) { _, _ ->
+                settings.batteryOptimizationDialogShown = true
+                tryAuthenticate()
+            }
+            .setCancelable(false)
+            .show()
+    }
+
     private fun authenticated(user: User) {
         Logger.info("Authenticated as ${user.name}")
 
@@ -145,11 +170,7 @@ internal class InitializationActivity : AppCompatActivity() {
             finish()
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(Intent(this, WebSocketService::class.java))
-        } else {
-            startService(Intent(this, WebSocketService::class.java))
-        }
+        WebSocketService.start(this)
     }
 
     private fun requestVersion(runnable: Runnable) {

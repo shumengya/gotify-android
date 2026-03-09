@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Color
@@ -13,6 +14,7 @@ import android.net.LinkProperties
 import android.net.Network
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -52,6 +54,59 @@ internal class WebSocketService : Service() {
         private val castAddition = if (BuildConfig.DEBUG) ".DEBUG" else ""
         val NEW_MESSAGE_BROADCAST = "${WebSocketService::class.java.name}.NEW_MESSAGE$castAddition"
         private const val NOT_LOADED = -2L
+        private const val RESTART_REQUEST_CODE = 2048
+        private val ACTION_START = "${WebSocketService::class.java.name}.START$castAddition"
+        private val ACTION_STOP = "${WebSocketService::class.java.name}.STOP$castAddition"
+        private val ACTION_RECONNECT = "${WebSocketService::class.java.name}.RECONNECT$castAddition"
+
+        internal fun start(context: Context, action: String = ACTION_START) {
+            val intent = Intent(context, WebSocketService::class.java).setAction(action)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                ContextCompat.startForegroundService(context, intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        internal fun stop(context: Context) = start(context, ACTION_STOP)
+
+        internal fun scheduleRestart(context: Context, delay: Duration) {
+            val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
+            val pendingIntent = reconnectPendingIntent(context)
+            val triggerAt = SystemClock.elapsedRealtime() + delay.inWholeMilliseconds
+
+            alarmManager.cancel(pendingIntent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerAt,
+                    pendingIntent
+                )
+            }
+        }
+
+        internal fun cancelScheduledRestart(context: Context) {
+            val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
+            val pendingIntent = reconnectPendingIntent(context)
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+
+        private fun reconnectPendingIntent(context: Context): PendingIntent {
+            val intent = Intent(context, WebSocketService::class.java).setAction(ACTION_RECONNECT)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                PendingIntent.getForegroundService(context, RESTART_REQUEST_CODE, intent, flags)
+            } else {
+                PendingIntent.getService(context, RESTART_REQUEST_CODE, intent, flags)
+            }
+        }
     }
 
     private lateinit var settings: Settings
@@ -76,6 +131,8 @@ internal class WebSocketService : Service() {
     private lateinit var missingMessageUtil: MissedMessageUtil
 
     private lateinit var markwon: Markwon
+    private var networkCallbackRegistered = false
+    private var shouldRestart = true
 
     override fun onCreate() {
         super.onCreate()
@@ -87,8 +144,18 @@ internal class WebSocketService : Service() {
     }
 
     override fun onDestroy() {
+        if (networkCallbackRegistered && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+            runCatching { cm.unregisterNetworkCallback(networkCallback) }
+            networkCallbackRegistered = false
+        }
         super.onDestroy()
         connection?.close()
+
+        if (shouldRestart && settings.tokenExists()) {
+            Logger.info("${javaClass.simpleName} destroyed unexpectedly, scheduling restart.")
+            scheduleRestart(applicationContext, 5.seconds)
+        }
 
         Logger.warn("Destroy ${javaClass.simpleName}")
     }
@@ -97,12 +164,31 @@ internal class WebSocketService : Service() {
         LoggerHelper.init(this)
         UncaughtExceptionHandler.registerCurrentThread()
 
+        if (intent?.action == ACTION_STOP) {
+            shouldRestart = false
+            cancelScheduledRestart(applicationContext)
+            connection?.close()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        shouldRestart = true
+        cancelScheduledRestart(applicationContext)
         connection?.close()
-        Logger.info("Starting ${javaClass.simpleName}")
+        Logger.info("Starting ${javaClass.simpleName} (${intent?.action ?: ACTION_START})")
         super.onStartCommand(intent, flags, startId)
         Thread { startPushService() }.start()
 
         return START_STICKY
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (shouldRestart && settings.tokenExists()) {
+            Logger.warn("Task removed, scheduling ${javaClass.simpleName} restart.")
+            scheduleRestart(applicationContext, 5.seconds)
+        }
+        super.onTaskRemoved(rootIntent)
     }
 
     private fun startPushService() {
@@ -128,6 +214,7 @@ internal class WebSocketService : Service() {
         )
 
         connection = WebSocketConnection(
+            applicationContext,
             settings.url,
             settings.sslSettings(),
             settings.token,
@@ -143,6 +230,7 @@ internal class WebSocketService : Service() {
             .start()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             cm.registerDefaultNetworkCallback(networkCallback)
+            networkCallbackRegistered = true
         }
         fetchApps()
     }

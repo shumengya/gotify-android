@@ -1,15 +1,12 @@
 package com.github.gotify.service
 
 import android.app.AlarmManager
-import android.app.AlarmManager.OnAlarmListener
+import android.content.Context
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import com.github.gotify.SSLSettings
 import com.github.gotify.Utils
 import com.github.gotify.api.CertUtils
 import com.github.gotify.client.model.Message
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.pow
@@ -25,6 +22,7 @@ import okhttp3.WebSocketListener
 import org.tinylog.kotlin.Logger
 
 internal class WebSocketConnection(
+    context: Context,
     private val baseUrl: String,
     settings: SSLSettings,
     private val token: String?,
@@ -36,10 +34,8 @@ internal class WebSocketConnection(
         private val ID = AtomicLong(0)
     }
 
-    private var alarmManagerCallback: OnAlarmListener? = null
-    private var handlerCallback: Runnable? = null
+    private val context = context.applicationContext
     private val client: OkHttpClient
-    private val reconnectHandler = Handler(Looper.getMainLooper())
     private var errorCount = 0
 
     private var webSocket: WebSocket? = null
@@ -114,13 +110,7 @@ internal class WebSocketConnection(
 
     @Synchronized
     fun close() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            alarmManagerCallback?.run(alarmManager::cancel)
-            alarmManagerCallback = null
-        } else {
-            handlerCallback?.run(reconnectHandler::removeCallbacks)
-            handlerCallback = null
-        }
+        cancelReconnect()
         if (webSocket != null) {
             webSocket?.close(1000, "")
             closed()
@@ -143,28 +133,13 @@ internal class WebSocketConnection(
         }
         state = State.Scheduled
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            Logger.info("WebSocket: scheduling a restart in $scheduleIn (via alarm manager)")
-            val future = Calendar.getInstance()
-            future.add(Calendar.SECOND, scheduleIn.inWholeSeconds.toInt())
+        Logger.info("WebSocket: scheduling a service restart in $scheduleIn")
+        WebSocketService.scheduleRestart(context, scheduleIn)
+    }
 
-            alarmManagerCallback?.run(alarmManager::cancel)
-            val cb = OnAlarmListener { syncExec(id) { start() } }
-            alarmManagerCallback = cb
-            alarmManager.setExact(
-                AlarmManager.RTC_WAKEUP,
-                future.timeInMillis,
-                "reconnect-tag",
-                cb,
-                null
-            )
-        } else {
-            Logger.info("WebSocket: scheduling a restart in $scheduleIn")
-            handlerCallback?.run(reconnectHandler::removeCallbacks)
-            val cb = Runnable { syncExec(id) { start() } }
-            handlerCallback = cb
-            reconnectHandler.postDelayed(cb, scheduleIn.inWholeMilliseconds)
-        }
+    @Synchronized
+    private fun cancelReconnect() {
+        WebSocketService.cancelScheduledRestart(context)
     }
 
     private inner class Listener(private val id: Long) : WebSocketListener() {
