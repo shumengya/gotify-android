@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <!--  Theme  -->
     <string-array name="mode">
         <item>@string/theme_light</item>
