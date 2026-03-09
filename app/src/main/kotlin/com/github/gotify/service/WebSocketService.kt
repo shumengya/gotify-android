@@ -200,7 +200,6 @@ internal class WebSocketService : Service() {
         }
 
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
         val reconnectDelay =
             sharedPreferences.getString(
@@ -218,7 +217,6 @@ internal class WebSocketService : Service() {
             settings.url,
             settings.sslSettings(),
             settings.token,
-            alarmManager,
             reconnectDelay,
             exponentialBackoff
         )

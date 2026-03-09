@@ -1,8 +1,6 @@
 package com.github.gotify.service
 
-import android.app.AlarmManager
 import android.content.Context
-import android.os.Build
 import com.github.gotify.SSLSettings
 import com.github.gotify.Utils
 import com.github.gotify.api.CertUtils
@@ -26,7 +24,6 @@ internal class WebSocketConnection(
     private val baseUrl: String,
     settings: SSLSettings,
     private val token: String?,
-    private val alarmManager: AlarmManager,
     private val reconnectDelay: Duration,
     private val exponentialBackoff: Boolean
 ) {
@@ -124,10 +121,10 @@ internal class WebSocketConnection(
         state = State.Disconnected
     }
 
-    fun scheduleReconnectNow(scheduleIn: Duration) = scheduleReconnect(ID.get(), scheduleIn)
+    fun scheduleReconnectNow(scheduleIn: Duration) = scheduleReconnect(scheduleIn)
 
     @Synchronized
-    fun scheduleReconnect(id: Long, scheduleIn: Duration) {
+    fun scheduleReconnect(scheduleIn: Duration) {
         if (state == State.Connecting || state == State.Connected) {
             return
         }
@@ -193,7 +190,7 @@ internal class WebSocketConnection(
                 scheduleIn = scheduleIn.coerceIn(5.seconds..20.minutes)
 
                 onFailure.execute(response?.message ?: "unreachable", scheduleIn)
-                scheduleReconnect(id, scheduleIn)
+                scheduleReconnect(scheduleIn)
             }
             super.onFailure(webSocket, t, response)
         }
