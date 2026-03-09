@@ -168,7 +168,7 @@ internal class WebSocketService : Service() {
             shouldRestart = false
             cancelScheduledRestart(applicationContext)
             connection?.close()
-            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopForegroundCompat()
             stopSelf()
             return START_NOT_STICKY
         }
@@ -181,6 +181,15 @@ internal class WebSocketService : Service() {
         Thread { startPushService() }.start()
 
         return START_STICKY
+    }
+
+    @Suppress("DEPRECATION")
+    private fun stopForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            stopForeground(true)
+        }
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
